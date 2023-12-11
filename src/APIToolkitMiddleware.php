@@ -154,7 +154,7 @@ class APIToolkitMiddleware
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
       'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents(): "")),
       'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
-      'sdk_type' => 'PhpLaravel',
+      'sdk_type' => 'PhpSlim',
       'status_code' => $response->getStatusCode(),
       'timestamp' => (new \DateTime())->format('c'),
       'url_path' => $pattern,
