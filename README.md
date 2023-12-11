@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The APIToolkit PHP SDK designed for use with Slim Framework to provide seamless integration with the APIToolkit service. This middleware captures and logs API requests and responses, redacting sensitive information as configured, and publishes the logs to Google Cloud Pub/Sub for further analysis.
+The APIToolkit PHP Slim SDK designed to provide seamless integration with the APIToolkit service. This middleware captures and logs API requests and responses, redacting sensitive information as configured, and publishes the logs to Google Cloud Pub/Sub for further analysis.
 
 ## Installation
 
