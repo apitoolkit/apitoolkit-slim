@@ -1,5 +1,5 @@
 <?php
-namespace App\Application\Middleware;
+namespace APIToolkit;
 
 
 use Psr\Http\Message\ResponseInterface as Response;
