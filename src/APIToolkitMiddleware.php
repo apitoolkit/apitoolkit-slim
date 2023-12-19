@@ -324,8 +324,6 @@ function buildError($err)
 }
 
 
-
-
 function extractPathParams($pattern, $url)
 {
   $patternSegments = explode('/', trim($pattern, '/'));
