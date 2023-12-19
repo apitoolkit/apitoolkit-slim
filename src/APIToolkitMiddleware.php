@@ -111,16 +111,37 @@ class APIToolkitMiddleware
 
   public static function getCredentials($APIKey, $url)
   {
+
+    $cacheFileName = __DIR__ . '/apitoolkit.php';
+
+    if (file_exists($cacheFileName)) {
+      $cachedCredentials = unserialize(file_get_contents($cacheFileName));
+
+      if (self::areCredentialsValid($cachedCredentials)) {
+        return $cachedCredentials;
+      }
+    }
+
     $clientmetadata = self::credentials($url, $APIKey);
     if (!$clientmetadata) {
       throw new InvalidClientMetadataException("Unable to query APIToolkit for client metadata, do you have a correct APIKey? ");
     }
-
-    return [
+    $data = [
       "projectId" => $clientmetadata["project_id"],
       "pubsubKeyFile" => $clientmetadata["pubsub_push_service_account"],
-      "topic" => $clientmetadata["topic_id"]
+      "topic" => $clientmetadata["topic_id"],
+      'expirationTime' => time() + 7200,
     ];
+
+    file_put_contents($cacheFileName, serialize($data));
+
+    return  $data;
+  }
+
+  private static function areCredentialsValid($credentials)
+  {
+    $expirationTime = $credentials['expirationTime'] ?? 0;
+    return $expirationTime > time();
   }
 
   public function addError($error)
@@ -322,7 +343,6 @@ function buildError($err)
     'stack_trace' => $err->getTraceAsString(),
   ];
 }
-
 
 function extractPathParams($pattern, $url)
 {
