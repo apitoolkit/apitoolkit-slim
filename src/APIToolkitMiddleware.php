@@ -1,10 +1,10 @@
 <?php
+
 namespace APIToolkit;
 
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Http\Server\MiddlewareInterface as Middleware;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Routing\RouteContext;
 use Google\Cloud\PubSub\PubSubClient;
@@ -13,7 +13,10 @@ use JsonPath\JsonObject;
 use JsonPath\InvalidJsonException;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
-
+use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware as GuzzleMiddleware;
+use Ramsey\Uuid\Uuid;
 
 
 class APIToolkitMiddleware
@@ -26,6 +29,7 @@ class APIToolkitMiddleware
   private array $redactHeaders = [];
   private array $redactRequestBody = [];
   private array $redactResponseBody = [];
+  private $logger;
 
   public function __construct(
     $apiKey,
@@ -35,8 +39,8 @@ class APIToolkitMiddleware
     array $redactResponseBody = [],
     $debug = false,
     $serviceVersion = null,
-    array $tags = [])
-  {
+    array $tags = []
+  ) {
     $this->redactHeaders = $redactHeaders;
     $this->redactRequestBody = $redactRequestBody;
     $this->redactResponseBody = $redactResponseBody;
@@ -61,10 +65,18 @@ class APIToolkitMiddleware
 
   public function __invoke(Request $request, RequestHandler $handler): Response
   {
-      $startTime = hrtime(true);    
-      $response = $handler->handle($request);
-      $this->log($request, $response, $startTime);
-      return $response;
+    $newUuid = Uuid::uuid4();
+    $msg_id = $newUuid->toString();
+    $request = $request->withAttribute('apitoolkitData', [
+      'errors' => [],
+      'msg_id' => $msg_id,
+      'project_id' => $this->projectId,
+      "client" => $this,
+    ]);
+    $startTime = hrtime(true);
+    $response = $handler->handle($request);
+    $this->log($request, $response, $startTime, $msg_id);
+    return $response;
   }
 
   public static function credentials($url, $api_key)
@@ -107,6 +119,75 @@ class APIToolkitMiddleware
     ];
   }
 
+  public static function observeGuzzle($request)
+  {
+
+    $handlerStack = HandlerStack::create();
+    $request_info = [];
+    $handlerStack->push(GuzzleMiddleware::mapRequest(function ($request) use (&$request_info) {
+      echo "Before Request: " . $request->getMethod() . ' ' . $request->getUri() . PHP_EOL;
+      $request_info = [
+        "start_time" => hrtime(true),
+        "method" => $request->getMethod(),
+        "raw_url" => $request->getUri(),
+        "headers" => $request->getHeaders(),
+        "body" => $request->getBody()->getContents(),
+        "query" => $request->getUri()->getQuery(),
+        "host" => $request->getHost(),
+      ];
+      return $request;
+    }));
+
+    $handlerStack->push(GuzzleMiddleware::mapResponse(function ($response) use (&$request_info, $request) {
+      $apitoolkit = $request->getAttribute("apitoolkitData");
+      $client = $apitoolkit['client'];
+      $msg_id = $apitoolkit['msg_id'];
+      $projectId = $apitoolkit['project_id'];
+      $payload = [
+        'duration' => round(hrtime(true) - $request_info["start_time"]),
+        'host' => $request_info["host"],
+        'method' => $request_info["method"],
+        'project_id' => $projectId,
+        'proto_major' => 1,
+        'proto_minor' => 1,
+        'query_params' => $request_info["query"],
+        'path_params' =>  [],
+        'raw_url' => $request_info["raw_url"],
+        'referer' => "",
+        'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request_info["headers"]),
+        'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
+        'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request_info["body"])),
+        'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
+        'errors' => [],
+        'sdk_type' => 'GuzzleOutgoing',
+        'parent_id' => $msg_id,
+        'status_code' => $response->getStatusCode(),
+        'timestamp' => (new \DateTime())->format('c'),
+        'url_path' => "",
+      ];
+      error_log(json_encode($payload));
+      $client->publishMessage($payload);
+      return $response;
+    }));
+
+    $client = new Client(['handler' => $handlerStack]);
+    return $client;
+  }
+
+  public static function reportError($error, $request)
+  {
+    $data = $request->getAttribute('apitoolkitData');
+    $errors = $data["errors"];
+    $atError = buildError($error);
+    array_push($errors, $atError);
+    $data["errors"] = $errors;
+    $request = $request->withAttribute('apitoolkitData', $data);
+    $data = $request->getAttribute('apitoolkitData');
+    $errors = $data["errors"];
+    error_log(json_encode($errors));
+    return $request;
+  }
+
   public function publishMessage($payload)
   {
 
@@ -119,10 +200,10 @@ class APIToolkitMiddleware
     ]);
   }
 
-  public function log(Request $request, $response, $startTime)
+  public function log(Request $request, $response, $startTime, $msg_id)
   {
     if (!$this->pubsubTopic) return;
-    $payload = $this->buildPayload($request, $response, $startTime, $this->projectId);
+    $payload = $this->buildPayload($request, $response, $startTime, $this->projectId, $msg_id);
     if ($this->debug) {
       $this->logger->debug("APIToolkit: payload", $payload);
     }
@@ -131,7 +212,7 @@ class APIToolkitMiddleware
 
   // payload static method deterministically converts a request, response object, a start time and a projectId
   // into a pauload json object which APIToolkit server is able to interprete.
-  public function buildPayload(Request $request, $response, $startTime, $projectId)
+  public function buildPayload(Request $request, $response, $startTime, $projectId, $msg_id)
   {
     $path = $request->getUri()->getPath();
     $query = $request->getUri()->getQuery();
@@ -139,6 +220,8 @@ class APIToolkitMiddleware
     $route = $routeContext->getRoute();
     $pattern = $route->getPattern();
     $pathWithQuery = $path . ($query ? '?' . $query : '');
+    $errors = $request->getAttribute('apitoolkitData')['errors'];
+    $this->logger->debug("APIToolkit: errors", $errors);
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -149,19 +232,22 @@ class APIToolkitMiddleware
       'query_params' => $request->getQueryParams(),
       'path_params' =>  $request->getAttributes() || [],
       'raw_url' => $pathWithQuery,
-      'referer' => $request->getHeaderLine('Referer'), 
+      'referer' => $request->getHeaderLine('Referer'),
       'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request->getHeaders()),
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
-      'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents(): "")),
+      'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents() : "")),
       'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
+      'errors' => $errors,
       'sdk_type' => 'PhpSlim',
+      'msg_id' => $msg_id,
+      'parent_id' => null,
       'status_code' => $response->getStatusCode(),
       'timestamp' => (new \DateTime())->format('c'),
       'url_path' => $pattern,
     ];
   }
 
-  public function redactHeaderFields(array $redactKeys, array $headerFields): array
+  public  static function redactHeaderFields(array $redactKeys, array $headerFields): array
   {
     array_walk($headerFields, function (&$value, $key, $redactKeys) {
       if (in_array(strtolower($key), array_map('strtolower', $redactKeys))) {
@@ -173,7 +259,7 @@ class APIToolkitMiddleware
 
   // redactJSONFields accepts a list of jsonpath's to redact, and a json object to redact from, 
   // and returns the final json after the redacting has been done.
-  public function redactJSONFields(array $redactKeys, string $jsonStr): string
+  public static function redactJSONFields(array $redactKeys, string $jsonStr): string
   {
     try {
       $obj = new JsonObject($jsonStr);
@@ -193,3 +279,27 @@ class InvalidClientMetadataException extends Exception
 {
 }
 
+function rootCause($err)
+{
+  $cause = $err;
+  while ($cause && property_exists($cause, 'cause')) {
+    $cause = $cause->cause;
+  }
+  return $cause;
+}
+
+function buildError($err)
+{
+  $errType = get_class($err);
+  $rootError = rootCause($err);
+  $rootErrorType = get_class($rootError);
+
+  return [
+    'when' => date('c'),
+    'error_type' => $errType,
+    'message' => $err->getMessage(),
+    'root_error_type' => $rootErrorType,
+    'root_error_message' => $rootError->getMessage(),
+    'stack_trace' => $err->getTraceAsString(),
+  ];
+}
