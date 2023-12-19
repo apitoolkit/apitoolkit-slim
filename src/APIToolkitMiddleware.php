@@ -35,7 +35,7 @@ class APIToolkitMiddleware
   private array $redactRequestBody = [];
   private array $redactResponseBody = [];
   private $logger;
-
+  private array $errors = [];
   public function __construct(
     $apiKey,
     $rootUrl = 'https://app.apitoolkit.io',
@@ -73,7 +73,6 @@ class APIToolkitMiddleware
     $newUuid = Uuid::uuid4();
     $msg_id = $newUuid->toString();
     $request = $request->withAttribute('apitoolkitData', [
-      'errors' => [],
       'msg_id' => $msg_id,
       'project_id' => $this->projectId,
       "client" => $this,
@@ -122,6 +121,11 @@ class APIToolkitMiddleware
       "pubsubKeyFile" => $clientmetadata["pubsub_push_service_account"],
       "topic" => $clientmetadata["topic_id"]
     ];
+  }
+
+  public function addError($error)
+  {
+    $this->errors[] = $error;
   }
 
   public static function observeGuzzle($request, $options)
@@ -188,21 +192,13 @@ class APIToolkitMiddleware
     return $client;
   }
 
-  public static function reportError($error, $response)
+  public static function reportError($error, $request)
   {
 
     $atError = buildError($error);
-    if ($response->hasHeader('X-Apitoolkit-Errors')) {
-      $errors = $response->getHeader('X-Apitoolkit-Errors');
-      array_push($errors, json_encode($atError));
-      $response = $response->withHeader('X-Apitoolkit-Errors', $errors);
-      return $response;
-    } else {
-      $errors = [];
-      array_push($errors, json_encode($atError));
-      $response = $response->withHeader('X-Apitoolkit-Errors', $errors);
-      return $response;
-    }
+    $apitoolkit = $request->getAttribute("apitoolkitData");
+    $client = $apitoolkit['client'];
+    $client->addError($atError);
   }
 
   public function publishMessage($payload)
@@ -236,12 +232,6 @@ class APIToolkitMiddleware
     $route = $routeContext->getRoute();
     $pattern = $route->getPattern();
     $pathWithQuery = $path . ($query ? '?' . $query : '');
-    $errors = $response->getHeader('X-Apitoolkit-Errors');
-    $modErrors = [];
-    foreach ($errors as $err) {
-      $data = json_decode($err, true);
-      $modErrors[] = $data;
-    }
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -257,7 +247,7 @@ class APIToolkitMiddleware
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
       'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents() : "")),
       'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
-      'errors' => $modErrors,
+      'errors' => $this->errors,
       'sdk_type' => 'PhpSlim',
       'msg_id' => $msg_id,
       'tags' => $this->tags,
