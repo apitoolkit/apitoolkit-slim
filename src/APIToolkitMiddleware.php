@@ -237,6 +237,7 @@ class APIToolkitMiddleware
     $pattern = $route->getPattern();
     $pathWithQuery = $path . ($query ? '?' . $query : '');
     $pathParams = extractPathParams($pattern, $path);
+    $body = $response->getBody();
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -251,7 +252,7 @@ class APIToolkitMiddleware
       'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request->getHeaders()),
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
       'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents() : "")),
-      'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
+      'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $body)),
       'errors' => $this->errors,
       'sdk_type' => 'PhpSlim',
       'msg_id' => $msg_id,
