@@ -20,6 +20,10 @@ use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Ramsey\Uuid\Uuid;
 
 
+
+
+
+
 class APIToolkitMiddleware
 {
   private string $projectId;
@@ -77,7 +81,6 @@ class APIToolkitMiddleware
     $startTime = hrtime(true);
     $response = $handler->handle($request);
     $this->log($request, $response, $startTime, $msg_id);
-    $response = $response->withoutHeader('X-Apitoolkit-Errors');
     return $response;
   }
 
@@ -121,15 +124,17 @@ class APIToolkitMiddleware
     ];
   }
 
-  public static function observeGuzzle($request)
+  public static function observeGuzzle($request, $options)
   {
     $handlerStack = HandlerStack::create();
     $request_info = [];
-    $handlerStack->push(GuzzleMiddleware::mapRequest(function ($request) use (&$request_info) {
+    $handlerStack->push(GuzzleMiddleware::mapRequest(function ($request) use (&$request_info, $options) {
+      error_log(json_encode($options));
       $request_info = [
         "start_time" => hrtime(true),
         "method" => $request->getMethod(),
-        "raw_url" => $request->getUri(),
+        "raw_url" => $request->getUri()->getPath(),
+        "url_path" => $options['pathPattern'] ?? $request->getUri()->getPath(),
         "headers" => $request->getHeaders(),
         "body" => $request->getBody()->getContents(),
         "query" => $request->getUri()->getQuery(),
@@ -138,7 +143,7 @@ class APIToolkitMiddleware
       return $request;
     }));
 
-    $handlerStack->push(GuzzleMiddleware::mapResponse(function ($response) use (&$request_info, $request) {
+    $handlerStack->push(GuzzleMiddleware::mapResponse(function ($response) use (&$request_info, $request, $options) {
       $apitoolkit = $request->getAttribute("apitoolkitData");
       $client = $apitoolkit['client'];
       $msg_id = $apitoolkit['msg_id'];
@@ -155,16 +160,16 @@ class APIToolkitMiddleware
         'path_params' =>  [],
         'raw_url' => $request_info["raw_url"],
         'referer' => "",
-        'request_headers' => self::redactHeaderFields([], $request_info["headers"]),
-        'response_headers' => self::redactHeaderFields([], $response->getHeaders()),
-        'request_body' => base64_encode(self::redactJSONFields([], $request_info["body"])),
-        'response_body' => base64_encode(self::redactJSONFields([], $respBody)),
+        'request_headers' => self::redactHeaderFields($options["redactHeaders"] ?? [], $request_info["headers"]),
+        'response_headers' => self::redactHeaderFields($options["redactHeaders"] ?? [], $response->getHeaders()),
+        'request_body' => base64_encode(self::redactJSONFields($options["redactRequestBody"] ?? [], $request_info["body"])),
+        'response_body' => base64_encode(self::redactJSONFields($options["redactResponseBody"] ?? [], $respBody)),
         'errors' => [],
         'sdk_type' => 'GuzzleOutgoing',
         'parent_id' => $msg_id,
         'status_code' => $response->getStatusCode(),
         'timestamp' => (new \DateTime())->format('c'),
-        'url_path' => "",
+        'url_path' => $request_info["url_path"],
       ];
       $client->publishMessage($payload);
       $newBodyStream = \GuzzleHttp\Psr7\Utils::streamFor($respBody);
@@ -185,6 +190,7 @@ class APIToolkitMiddleware
 
   public static function reportError($error, $response)
   {
+
     $atError = buildError($error);
     if ($response->hasHeader('X-Apitoolkit-Errors')) {
       $errors = $response->getHeader('X-Apitoolkit-Errors');
