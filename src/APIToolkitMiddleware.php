@@ -132,16 +132,20 @@ class APIToolkitMiddleware
   {
     $handlerStack = HandlerStack::create();
     $request_info = [];
+    $query = "";
+    parse_str($request->getUri()->getQuery(), $query);
     $handlerStack->push(GuzzleMiddleware::mapRequest(function ($request) use (&$request_info, $options) {
-      error_log(json_encode($options));
+      $query = "";
+      parse_str($request->getUri()->getQuery(), $query);
       $request_info = [
         "start_time" => hrtime(true),
         "method" => $request->getMethod(),
-        "raw_url" => $request->getUri()->getPath(),
+        "raw_url" => $request->getUri()->getPath() . '?' . $request->getUri()->getQuery(),
+        "url_no_query" => $request->getUri()->getPath(),
         "url_path" => $options['pathPattern'] ?? $request->getUri()->getPath(),
         "headers" => $request->getHeaders(),
         "body" => $request->getBody()->getContents(),
-        "query" => $request->getUri()->getQuery(),
+        "query" => $query,
         "host" => $request->getUri()->getHost(),
       ];
       return $request;
@@ -161,7 +165,7 @@ class APIToolkitMiddleware
         'proto_major' => 1,
         'proto_minor' => 1,
         'query_params' => $request_info["query"],
-        'path_params' =>  [],
+        'path_params' =>  extractPathParams($request_info["url_path"], $request_info["url_no_query"]),
         'raw_url' => $request_info["raw_url"],
         'referer' => "",
         'request_headers' => self::redactHeaderFields($options["redactHeaders"] ?? [], $request_info["headers"]),
@@ -232,6 +236,7 @@ class APIToolkitMiddleware
     $route = $routeContext->getRoute();
     $pattern = $route->getPattern();
     $pathWithQuery = $path . ($query ? '?' . $query : '');
+    $pathParams = extractPathParams($pattern, $path);
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -240,7 +245,7 @@ class APIToolkitMiddleware
       'proto_major' => 1,
       'proto_minor' => 1,
       'query_params' => $request->getQueryParams(),
-      'path_params' =>  $request->getAttributes() || [],
+      'path_params' =>  $pathParams,
       'raw_url' => $pathWithQuery,
       'referer' => $request->getHeaderLine('Referer'),
       'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request->getHeaders()),
@@ -314,4 +319,26 @@ function buildError($err)
     'root_error_message' => $rootError->getMessage(),
     'stack_trace' => $err->getTraceAsString(),
   ];
+}
+
+
+
+
+function extractPathParams($pattern, $url)
+{
+  $patternSegments = explode('/', trim($pattern, '/'));
+  $urlSegments = explode('/', trim($url, '/'));
+
+  $params = array();
+
+  foreach ($patternSegments as $key => $segment) {
+    if (strpos($segment, '{') === 0 && strpos($segment, '}') === strlen($segment) - 1) {
+      $paramName = trim($segment, '{}');
+      if (isset($urlSegments[$key])) {
+        $params[$paramName] = $urlSegments[$key];
+      }
+    }
+  }
+
+  return $params;
 }
