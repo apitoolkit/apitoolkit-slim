@@ -238,6 +238,7 @@ class APIToolkitMiddleware
     $pathWithQuery = $path . ($query ? '?' . $query : '');
     $pathParams = extractPathParams($pattern, $path);
     $body = $response->getBody();
+    $reqBod = $request->getParsedBody();
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -251,7 +252,7 @@ class APIToolkitMiddleware
       'referer' => $request->getHeaderLine('Referer'),
       'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request->getHeaders()),
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
-      'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents() : "")),
+      'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, json_encode($reqBod))),
       'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $body)),
       'errors' => $this->errors,
       'sdk_type' => 'PhpSlim',
