@@ -77,6 +77,7 @@ class APIToolkitMiddleware
     $startTime = hrtime(true);
     $response = $handler->handle($request);
     $this->log($request, $response, $startTime, $msg_id);
+    $response = $response->withoutHeader('X-Apitoolkit-Errors');
     return $response;
   }
 
