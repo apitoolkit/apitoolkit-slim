@@ -182,16 +182,20 @@ class APIToolkitMiddleware
     return $client;
   }
 
-  public static function reportError($error, $request)
+  public static function reportError($error, $response)
   {
-    $data = $request->getAttribute('apitoolkitData');
-    $errors = $data["errors"];
     $atError = buildError($error);
-    array_push($errors, $atError);
-    $data["errors"] = $errors;
-    $request = $request->withAttribute('apitoolkitData', $data);
-    $data = $request->getAttribute('apitoolkitData');
-    $errors = $data["errors"];
+    if ($response->hasHeader('X-Apitoolkit-Errors')) {
+      $errors = $response->getHeader('X-Apitoolkit-Errors');
+      array_push($errors, json_encode($atError));
+      $response = $response->withHeader('X-Apitoolkit-Errors', $errors);
+      return $response;
+    } else {
+      $errors = [];
+      array_push($errors, json_encode($atError));
+      $response = $response->withHeader('X-Apitoolkit-Errors', $errors);
+      return $response;
+    }
   }
 
   public function publishMessage($payload)
@@ -225,7 +229,12 @@ class APIToolkitMiddleware
     $route = $routeContext->getRoute();
     $pattern = $route->getPattern();
     $pathWithQuery = $path . ($query ? '?' . $query : '');
-    $errors = $request->getAttribute('apitoolkitData')['errors'];
+    $errors = $response->getHeader('X-Apitoolkit-Errors');
+    $modErrors = [];
+    foreach ($errors as $err) {
+      $data = json_decode($err, true);
+      $modErrors[] = $data;
+    }
     return [
       'duration' => round(hrtime(true) - $startTime),
       'host' => $request->getUri()->getAuthority(),
@@ -241,7 +250,7 @@ class APIToolkitMiddleware
       'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
       'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, $request->getBody() ? $request->getBody()->getContents() : "")),
       'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $response->getBody()->getContents())),
-      'errors' => $errors,
+      'errors' => $modErrors,
       'sdk_type' => 'PhpSlim',
       'msg_id' => $msg_id,
       'tags' => $this->tags,
