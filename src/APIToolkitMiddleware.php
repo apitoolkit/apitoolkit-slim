@@ -19,6 +19,7 @@ use GuzzleHttp\Middleware as GuzzleMiddleware;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Ramsey\Uuid\Uuid;
 
+include "utils.php";
 
 
 
@@ -217,15 +218,6 @@ class APIToolkitMiddleware
     return $client;
   }
 
-  public static function reportError($error, $request)
-  {
-
-    $atError = buildError($error);
-    $apitoolkit = $request->getAttribute("apitoolkitData");
-    $client = $apitoolkit['client'];
-    $client->addError($atError);
-  }
-
   public function publishMessage($payload)
   {
     $data = json_encode($payload, JSON_UNESCAPED_SLASHES);
@@ -271,10 +263,10 @@ class APIToolkitMiddleware
       'path_params' =>  $pathParams,
       'raw_url' => $pathWithQuery,
       'referer' => $request->getHeaderLine('Referer'),
-      'request_headers' => $this->redactHeaderFields($this->redactHeaders, $request->getHeaders()),
-      'response_headers' => $this->redactHeaderFields($this->redactHeaders, $response->getHeaders()),
-      'request_body' => base64_encode($this->redactJSONFields($this->redactRequestBody, json_encode($reqBod))),
-      'response_body' => base64_encode($this->redactJSONFields($this->redactResponseBody, $body)),
+      'request_headers' => redactHeaderFields($this->redactHeaders, $request->getHeaders()),
+      'response_headers' => redactHeaderFields($this->redactHeaders, $response->getHeaders()),
+      'request_body' => base64_encode(redactJSONFields($this->redactRequestBody, json_encode($reqBod))),
+      'response_body' => base64_encode(redactJSONFields($this->redactResponseBody, $body)),
       'errors' => $this->errors,
       'sdk_type' => 'PhpSlim',
       'msg_id' => $msg_id,
@@ -317,48 +309,4 @@ class APIToolkitMiddleware
 
 class InvalidClientMetadataException extends Exception
 {
-}
-
-function rootCause($err)
-{
-  $cause = $err;
-  while ($cause && property_exists($cause, 'cause')) {
-    $cause = $cause->cause;
-  }
-  return $cause;
-}
-
-function buildError($err)
-{
-  $errType = get_class($err);
-  $rootError = rootCause($err);
-  $rootErrorType = get_class($rootError);
-
-  return [
-    'when' => date('c'),
-    'error_type' => $errType,
-    'message' => $err->getMessage(),
-    'root_error_type' => $rootErrorType,
-    'root_error_message' => $rootError->getMessage(),
-    'stack_trace' => $err->getTraceAsString(),
-  ];
-}
-
-function extractPathParams($pattern, $url)
-{
-  $patternSegments = explode('/', trim($pattern, '/'));
-  $urlSegments = explode('/', trim($url, '/'));
-
-  $params = array();
-
-  foreach ($patternSegments as $key => $segment) {
-    if (strpos($segment, '{') === 0 && strpos($segment, '}') === strlen($segment) - 1) {
-      $paramName = trim($segment, '{}');
-      if (isset($urlSegments[$key])) {
-        $params[$paramName] = $urlSegments[$key];
-      }
-    }
-  }
-
-  return $params;
 }
