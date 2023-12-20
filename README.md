@@ -24,9 +24,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function ($request, $response) {
     $response->getBody()->write('Hello, World!');
@@ -62,9 +62,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>", redactHeaders = ["Authorization"], redactRequestBody = ["$.password"], redactResponseBody = ["$.password"]);
+$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>", redactHeaders = ["Authorization"], redactRequestBody = ["$.password"], redactResponseBody = ["$.password"]);
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function ($request, $response) {
     $response->getBody()->write('Hello, World!');
@@ -80,7 +80,7 @@ The `APIToolkit-Slim` SDK facilitates the observation of outgoing requests withi
 
 ### Getting Started
 
-To observe outgoing requests, utilize the `observeGuzzle` method of the middleware. Pass the Slim `$request` object to this method, and it will configure Guzzle with monitoring capabilities.
+To observe outgoing requests, utilize the `observeGuzzle` method of the `APIToolkitSlim` class. Pass the Slim `$request` object to this method, and it will configure Guzzle with monitoring capabilities.
 
 ```php
 use Slim\Factory\AppFactory;
@@ -91,9 +91,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
     $guzzleClient = APIToolkitSlim::observeGuzzle($request);
@@ -118,9 +118,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
     $guzzleClient = APIToolkitSlim::observeGuzzle($request, ["pathPattern" => "/repos/{owner}/{repo}"]);
@@ -146,9 +146,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apioolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
     $options = [
@@ -181,9 +181,9 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 
-$app->add($APIToolkitMiddleware);
+$app->add($apitoolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
     try {
