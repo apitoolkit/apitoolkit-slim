@@ -85,6 +85,7 @@ To observe outgoing requests, utilize the `observeGuzzle` method of the middlewa
 ```php
 use Slim\Factory\AppFactory;
 use APIToolkit\APIToolkitMiddleware;
+use APIToolkit\APIToolkitSlim;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -95,7 +96,7 @@ $APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 $app->add($APIToolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
-    $guzzleClient = APIToolkitMiddleware::observeGuzzle($request);
+    $guzzleClient = APIToolkitSlim::observeGuzzle($request);
     $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.example.com/resource');
     $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
     return $response;
@@ -111,6 +112,7 @@ If your requests include path parameters, specify a wildcard URL for the path. T
 ```php
 use Slim\Factory\AppFactory;
 use APIToolkit\APIToolkitMiddleware;
+use APIToolkit\APIToolkitSlim;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -121,7 +123,7 @@ $APIToolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
 $app->add($APIToolkitMiddleware);
 
 $app->get('/', function (Request $request, Response $response) {
-    $guzzleClient = APIToolkitMiddleware::observeGuzzle($request, ["pathPattern" => "/repos/{owner}/{repo}"]);
+    $guzzleClient = APIToolkitSlim::observeGuzzle($request, ["pathPattern" => "/repos/{owner}/{repo}"]);
     $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.github.com/repos/guzzle/guzzle');
     $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
     return $response;
@@ -137,6 +139,8 @@ You can redact headers and fields in the request and response bodies using `obse
 ```php
 use Slim\Factory\AppFactory;
 use APIToolkit\APIToolkitMiddleware;
+use APIToolkit\APIToolkitSlim;
+
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -154,7 +158,7 @@ $app->get('/', function (Request $request, Response $response) {
         "redactResponseBody" => ["$.password"]
     ];
 
-    $guzzleClient = APIToolkitMiddleware::observeGuzzle($request, $options);
+    $guzzleClient = APIToolkitSlim::observeGuzzle($request, $options);
     $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.github.com/repos/guzzle/guzzle?foobar=123');
     
     $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
@@ -166,11 +170,12 @@ $app->run();
 
 ## Reporting Errors to APIToolkit
 
-APIToolkit can automatically detect API issues, but reporting errors manually provides additional details. To report errors, call the `reportError` method within the context of a web request.
+APIToolkit can automatically detect API issues, but reporting errors manually provides additional details. To report errors, call the `reportError` method  of `APIToolkitSlim` within the context of a web request.
 
 ```php
 use Slim\Factory\AppFactory;
 use APIToolkit\APIToolkitMiddleware;
+use APIToolkit\APIToolkitSlim;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -186,7 +191,7 @@ $app->get('/', function (Request $request, Response $response) {
         return $response;
     } catch (Exception $e) {
         // Report the error to APIToolkit
-        APIToolkitMiddleware::reportError($e, $request);
+        APIToolkitSlim::reportError($e, $request);
         $response->getBody()->write($e->getMessage());
         return $response;
     }
@@ -194,6 +199,7 @@ $app->get('/', function (Request $request, Response $response) {
 
 $app->run();
 ```
+You can report as many errors as you want for each request!
 
 And that's it!
 Happy hacking.
