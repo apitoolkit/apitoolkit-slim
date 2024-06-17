@@ -1,21 +1,39 @@
-# APIToolkit PHP Slim SDK
+<div align="center">
 
-## Introduction
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-white.svg?raw=true#gh-dark-mode-only)
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-black.svg?raw=true#gh-light-mode-only)
 
-The APIToolkit PHP Slim SDK designed to provide seamless integration with the APIToolkit service. This middleware captures and logs API requests and responses, redacting sensitive information as configured, and publishes the logs to Google Cloud Pub/Sub for further analysis.
+## Slim SDK
+
+[![APItoolkit SDK](https://img.shields.io/badge/APItoolkit-SDK-0068ff?logo=php)](https://github.com/topics/apitoolkit-sdk) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://discord.gg/dEB6EjQnKB) [![APItoolkit Docs](https://img.shields.io/badge/Read-Docs-0068ff)](https://apitoolkit.io/docs/sdks/php/slim?utm_source=github-sdks) 
+
+APItoolkit is an end-to-end API and web services management toolkit for engineers and customer support teams. To integrate your Slim (PHP) application with APItoolkit, you need to use this SDK to monitor incoming traffic, aggregate the requests, and then deliver them to the APItoolkit's servers.
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Contributing and Help](#contributing-and-help)
+- [License](#license)
+
+---
 
 ## Installation
 
-To install the APIToolkit PHP Middleware, you can use Composer:
+Kindly run the command below to install the SDK:
 
-```bash
+```sh
 composer require apitoolkit/apitoolkit-slim
 ```
 
-## Usage
-Create a new instance of the APIToolkitMiddleware class and register the middleware with Slim Framework, add it to the Slim app:
+## Configuration
 
-Example:
+Next, create a new instance of the `APIToolkitMiddleware` class and register the middleware with the Slim Framework in the `app/middleware.php` file, like so:
+
 ```php
 use Slim\Factory\AppFactory;
 use APIToolkit\APIToolkitMiddleware;
@@ -24,7 +42,12 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
+$apitoolkitMiddleware = new APIToolkitMiddleware(
+    "{ENTER_YOUR_API_KEY_HERE}",
+    $debug=false
+    $tags=["environment: production", "region: us-east-1"],
+    $serviceVersion="v2.0"
+);
 
 $app->add($apitoolkitMiddleware);
 
@@ -36,170 +59,31 @@ $app->get('/', function ($request, $response) {
 $app->run();
 ```
 
-### Configuration Options
+> [!NOTE]
+> 
+> The `{ENTER_YOUR_API_KEY_HERE}` demo string should be replaced with the [API key](https://apitoolkit.io/docs/dashboard/settings-pages/api-keys?utm_source=github-sdks) generated from the APItoolkit dashboard.
 
-The middleware supports several configuration options during initialization:
+<br />
 
-- `$redactHeaders`: An array of headers to redact in the logs.
-- `$redactRequestBody`: An array of JSON paths to redact in the request body.
-- `$redactResponseBody`: An array of JSON paths to redact in the response body.
-- `$debug`: Enable or disable debugging mode (default is `false`).
-- `$serviceVersion`: Specify the service version in the logs.
-- `$tags`: An array of custom tags to include in the logs.
+> [!IMPORTANT]
+> 
+> To learn more configuration options (redacting fields, error reporting, outgoing requests, etc.), please read this [SDK documentation](https://apitoolkit.io/docs/sdks/php/slim?utm_source=github-sdks).
 
+## Contributing and Help
 
-### Redaction
+To contribute to the development of this SDK or request help from the community and our team, kindly do any of the following:
+- Read our [Contributors Guide](https://github.com/apitoolkit/.github/blob/main/CONTRIBUTING.md).
+- Join our community [Discord Server](https://discord.gg/dEB6EjQnKB).
+- Create a [new issue](https://github.com/apitoolkit/apitoolkit-slim/issues/new/choose) in this repository.
 
-Sensitive information in headers, request bodies, and response bodies can be redacted using the specified configuration options. Redacted fields are replaced with `[CLIENT_REDACTED]`.
+## License
 
-### Example
+This repository is published under the [MIT](LICENSE) license.
 
-```php
-use Slim\Factory\AppFactory;
-use APIToolkit\APIToolkitMiddleware;
+---
 
-require __DIR__ . '/vendor/autoload.php';
-
-$app = AppFactory::create();
-
-$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>", redactHeaders = ["Authorization"], redactRequestBody = ["$.password"], redactResponseBody = ["$.password"]);
-
-$app->add($apitoolkitMiddleware);
-
-$app->get('/', function ($request, $response) {
-    $response->getBody()->write('Hello, World!');
-    return $response;
-});
-
-$app->run();
-```
-
-## Observing Outgoing Requests with Guzzle in APIToolkit-Slim SDK
-
-The `APIToolkit-Slim` SDK facilitates the observation of outgoing requests within your application using Guzzle middleware. This feature allows you to monitor and track details about your API calls, aiding in debugging and performance analysis.
-
-### Getting Started
-
-To observe outgoing requests, utilize the `observeGuzzle` method of the `APIToolkitSlim` class. Pass the Slim `$request` object to this method, and it will configure Guzzle with monitoring capabilities.
-
-```php
-use Slim\Factory\AppFactory;
-use APIToolkit\APIToolkitMiddleware;
-use APIToolkit\APIToolkitSlim;
-
-require __DIR__ . '/vendor/autoload.php';
-
-$app = AppFactory::create();
-
-$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
-
-$app->add($apitoolkitMiddleware);
-
-$app->get('/', function (Request $request, Response $response) {
-    $guzzleClient = APIToolkitSlim::observeGuzzle($request);
-    $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.example.com/resource');
-    $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
-    return $response;
-});
-
-$app->run();
-```
-
-### Observing Requests with Path Params
-
-If your requests include path parameters, specify a wildcard URL for the path. This ensures proper grouping on the APIToolkit dashboard.
-
-```php
-use Slim\Factory\AppFactory;
-use APIToolkit\APIToolkitMiddleware;
-use APIToolkit\APIToolkitSlim;
-
-require __DIR__ . '/vendor/autoload.php';
-
-$app = AppFactory::create();
-
-$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
-
-$app->add($apitoolkitMiddleware);
-
-$app->get('/', function (Request $request, Response $response) {
-    $guzzleClient = APIToolkitSlim::observeGuzzle($request, ["pathPattern" => "/repos/{owner}/{repo}"]);
-    $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.github.com/repos/guzzle/guzzle');
-    $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
-    return $response;
-});
-
-$app->run();
-```
-
-### Field Redaction with `observeGuzzle`
-
-You can redact headers and fields in the request and response bodies using `observeGuzzle`. Specify the headers and field keypaths you want to redact.
-
-```php
-use Slim\Factory\AppFactory;
-use APIToolkit\APIToolkitMiddleware;
-use APIToolkit\APIToolkitSlim;
-
-
-require __DIR__ . '/vendor/autoload.php';
-
-$app = AppFactory::create();
-
-$apioolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
-
-$app->add($apitoolkitMiddleware);
-
-$app->get('/', function (Request $request, Response $response) {
-    $options = [
-        "pathPattern" => "/repos/{owner}/{repo}",
-        "redactHeaders" => ["Server"],
-        "redactRequestBody" => ["$.password"],
-        "redactResponseBody" => ["$.password"]
-    ];
-
-    $guzzleClient = APIToolkitSlim::observeGuzzle($request, $options);
-    $responseFromGuzzle = $guzzleClient->request('GET', 'https://api.github.com/repos/guzzle/guzzle?foobar=123');
+<div align="center">
     
-    $response->getBody()->write($responseFromGuzzle->getBody()->getContents());
-    return $response;
-});
+<a href="https://apitoolkit.io?utm_source=github-sdks" target="_blank" rel="noopener noreferrer"><img src="https://github.com/apitoolkit/.github/blob/main/images/icon.png?raw=true" width="40" /></a>
 
-$app->run();
-```
-
-## Reporting Errors to APIToolkit
-
-APIToolkit can automatically detect API issues, but reporting errors manually provides additional details. To report errors, call the `reportError` method  of `APIToolkitSlim` within the context of a web request.
-
-```php
-use Slim\Factory\AppFactory;
-use APIToolkit\APIToolkitMiddleware;
-use APIToolkit\APIToolkitSlim;
-
-require __DIR__ . '/vendor/autoload.php';
-
-$app = AppFactory::create();
-
-$apitoolkitMiddleware = new APIToolkitMiddleware("<API_KEY>");
-
-$app->add($apitoolkitMiddleware);
-
-$app->get('/', function (Request $request, Response $response) {
-    try {
-        throw new Exception("Custom user error");
-        return $response;
-    } catch (Exception $e) {
-        // Report the error to APIToolkit
-        APIToolkitSlim::reportError($e, $request);
-        $response->getBody()->write($e->getMessage());
-        return $response;
-    }
-});
-
-$app->run();
-```
-You can report as many errors as you want for each request!
-
-And that's it!
-Happy hacking.
+</div>
