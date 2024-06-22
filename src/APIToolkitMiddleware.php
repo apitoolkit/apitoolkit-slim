@@ -36,10 +36,10 @@ class APIToolkitMiddleware
   private array $redactResponseBody = [];
   private $logger;
   private array $errors = [];
-  
+
   public function __construct(array $config) {
-    $this->apiKey = $config['apiKey'] ?? null;
-    $this->rootUrl = $config['rootUrl'] ?? 'https://app.apitoolkit.io';
+    $apiKey = $config['apiKey'] ?? null;
+    $rootUrl = $config['rootUrl'] ?? 'https://app.apitoolkit.io';
     $this->redactHeaders = $config['redactHeaders'] ?? [];
     $this->redactRequestBody = $config['redactRequestBody'] ?? [];
     $this->redactResponseBody = $config['redactResponseBody'] ?? [];
@@ -52,6 +52,7 @@ class APIToolkitMiddleware
 
 
     $apitoolkitCredentials = $this->getCredentials($apiKey, $rootUrl);
+
     $this->projectId = $apitoolkitCredentials["projectId"];
     // TODO: Is it possible to cache this pubsub client and prevent initialization on each request?
     $pubsubClient = new PubSubClient([
