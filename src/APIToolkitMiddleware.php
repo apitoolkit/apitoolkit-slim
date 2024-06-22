@@ -24,7 +24,6 @@ include "utils.php";
 
 
 
-
 class APIToolkitMiddleware
 {
   private string $projectId;
@@ -37,22 +36,17 @@ class APIToolkitMiddleware
   private array $redactResponseBody = [];
   private $logger;
   private array $errors = [];
-  public function __construct(
-    $apiKey,
-    $rootUrl = 'https://app.apitoolkit.io',
-    array $redactHeaders = [],
-    array $redactRequestBody = [],
-    array $redactResponseBody = [],
-    $debug = false,
-    $serviceVersion = null,
-    array $tags = []
-  ) {
-    $this->redactHeaders = $redactHeaders;
-    $this->redactRequestBody = $redactRequestBody;
-    $this->redactResponseBody = $redactResponseBody;
-    $this->debug = $debug;
-    $this->serviceVersion = $serviceVersion;
-    $this->tags = $tags;
+  
+  public function __construct(array $config) {
+    $this->apiKey = $config['apiKey'] ?? null;
+    $this->rootUrl = $config['rootUrl'] ?? 'https://app.apitoolkit.io';
+    $this->redactHeaders = $config['redactHeaders'] ?? [];
+    $this->redactRequestBody = $config['redactRequestBody'] ?? [];
+    $this->redactResponseBody = $config['redactResponseBody'] ?? [];
+    $this->debug = $config['debug'] ?? false;
+    $this->serviceVersion = $config['serviceVersion'] ?? null;
+    $this->tags = $config['tags'] ?? [];
+    
     $this->logger = new Logger('APIToolkit');
     $this->logger->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
 

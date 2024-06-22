@@ -42,16 +42,7 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$apitoolkitMiddleware = new APIToolkitMiddleware(
-    "{ENTER_YOUR_API_KEY_HERE}",
-    $rootUrl=null,
-    $redactHeaders=[],
-    $redactRequestBody=[],
-    $redactResponseBody=[],
-    $debug=false
-    $tags=["environment: production", "region: us-east-1"],
-    $serviceVersion="v2.0"
-);
+$apitoolkitMiddleware = new APIToolkitMiddleware(['apiKey' => "{ENTER_YOUR_API_KEY_HERE}"]);
 
 $app->add($apitoolkitMiddleware);
 
