@@ -17,11 +17,10 @@
     ],
     "require": {
         "php": "^7.4 || ^8.0",
-        "ext-curl": "*",
         "ext-json": "*",
-        "galbar/jsonpath": "^3.0",
-        "google/cloud-pubsub": "^1.48",
+        "apitoolkit/common": "^1.0",
         "monolog/monolog": "^3.5",
+        "open-telemetry/api": "^1.1",
         "php-di/php-di": "^6.4",
         "ramsey/uuid": "^4.7",
         "slim/psr7": "^1.5",
@@ -37,7 +36,9 @@
     },
     "config": {
         "allow-plugins": {
-            "phpstan/extension-installer": true
+            "phpstan/extension-installer": true,
+            "php-http/discovery": true,
+            "tbachert/spi": true
         },
         "process-timeout": 0,
         "sort-packages": true
