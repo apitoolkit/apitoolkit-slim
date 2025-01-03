@@ -75,8 +75,8 @@ class APIToolkitMiddleware
       $pattern = $route->getPattern();
       $pathWithQuery = $path . ($query ? '?' . $query : '');
       $pathParams = $this->extractPathParams($pattern, $path);
-      $body = $response->getBody();
-      $reqBod = $request->getParsedBody();
+      $body = $response->getBody() || "";
+      $reqBod = $request->getParsedBody() || "";
       Shared::setAttributes(
         $span,
         $request->getUri()->getAuthority(),
@@ -122,7 +122,6 @@ class APIToolkitMiddleware
 
   public static function reportError($error, $request)
   {
-    $atError = buildError($error);
     $apitoolkit = $request->getAttribute("apitoolkitData");
     $client = $apitoolkit['client'];
     Share::reportError($error, $client);

@@ -19,7 +19,6 @@ class APIToolkitSlim
 
     public static function reportError($error, $request)
     {
-      $atError = buildError($error);
       $apitoolkit = $request->getAttribute("apitoolkitData");
       $client = $apitoolkit['client'];
       Share::reportError($error, $client);
