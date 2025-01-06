@@ -30,7 +30,6 @@ Kindly run the command below to install the apitoolkit-slim sdk and otel package
 ```sh
 composer require \
     open-telemetry/sdk \
-    open-telemetry/transport-grpc \
     open-telemetry/exporter-otlp \
     open-telemetry/opentelemetry-auto-slim \
     open-telemetry/opentelemetry-auto-psr18 \
