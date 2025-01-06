@@ -91,7 +91,7 @@ class APIToolkitMiddleware
         $pattern,
         $reqBod,
         $body,
-        $this->$errors,
+        $this->errors,
         $this->config,
         'PhpSlim',
         null
@@ -124,7 +124,7 @@ class APIToolkitMiddleware
   {
     $apitoolkit = $request->getAttribute("apitoolkitData");
     $client = $apitoolkit['client'];
-    Share::reportError($error, $client);
+    Shared::reportError($error, $client);
   }
 }
 

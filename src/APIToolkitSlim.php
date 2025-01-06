@@ -21,6 +21,6 @@ class APIToolkitSlim
     {
       $apitoolkit = $request->getAttribute("apitoolkitData");
       $client = $apitoolkit['client'];
-      Share::reportError($error, $client);
+      Shared::reportError($error, $client);
     }
 }
