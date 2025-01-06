@@ -16,7 +16,8 @@ APItoolkit is an end-to-end API and web services management toolkit for engineer
 ## Table of Contents
 
 - [Installation](#installation)
-- [Configuration](#configuration)
+- [Open Telemetry Configuration](#setup-opentelemetry)
+- [APItoolkit Middleware Setup](#setup-apitoolkit-middleware)
 - [Contributing and Help](#contributing-and-help)
 - [License](#license)
 
@@ -24,15 +25,49 @@ APItoolkit is an end-to-end API and web services management toolkit for engineer
 
 ## Installation
 
-Kindly run the command below to install the SDK:
+Kindly run the command below to install the apitoolkit-slim sdk and otel packages:
 
 ```sh
-composer require apitoolkit/apitoolkit-slim
+composer require \
+    open-telemetry/sdk \
+    open-telemetry/transport-grpc \
+    open-telemetry/exporter-otlp \
+    open-telemetry/opentelemetry-auto-slim \
+    open-telemetry/opentelemetry-auto-psr18 \
+    apitoolkit/apitoolkit-slim
+
 ```
 
-## Configuration
+## Setup Opentelemetry
 
-Next, create a new instance of the `APIToolkitMiddleware` class and register the middleware with the Slim Framework in the `app/middleware.php` file, like so:
+#### Installing opentelemetry extension
+
+After installing the necessary packages, you'll need to install the opentelemetry extention and add it to your `php.ini` file
+
+```sh
+pecl install opentelemetry
+```
+
+Then add it to your `php.ini` file like so.
+
+```ini
+[opentelemetry]
+extension=opentelemetry.so
+```
+
+```sh
+export OTEL_PHP_AUTOLOAD_ENABLED=true
+export OTEL_SERVICE_NAME=your-service-name
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol.apitoolkit.io:4318
+export OTEL_RESOURCE_ATTRIBUTES="at-project-key={ENTER_YOUR_API_KEY_HERE}"
+export OTEL_PROPAGATORS=baggage,tracecontext
+```
+
+## Setup APItoolkit Middleware
+
+Next, create a new instance of the `APIToolkitMiddleware` class and register the middleware with the Slim Framework in the `app/middleware.php` file, like so. This creates a customs spans which captures and sends https request info such as headers, requests and repsonse bodies, matched route etc. for each request
 
 ```php
 use Slim\Factory\AppFactory;
@@ -42,7 +77,7 @@ require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
 
-$apitoolkitMiddleware = new APIToolkitMiddleware(['apiKey' => "{ENTER_YOUR_API_KEY_HERE}"]);
+$apitoolkitMiddleware = new APIToolkitMiddleware(['captureRequestBody' => true]);
 
 $app->add($apitoolkitMiddleware);
 
