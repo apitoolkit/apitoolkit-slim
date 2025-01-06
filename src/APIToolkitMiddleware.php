@@ -17,9 +17,6 @@ use OpenTelemetry\API\Globals;
 
 class APIToolkitMiddleware
 {
-  private string $projectId;
-  public bool $debug;
-  public $pubsubTopic;
   private ?string $serviceVersion;
   private array $tags;
   private array $redactHeaders = [];
@@ -28,11 +25,16 @@ class APIToolkitMiddleware
   private $logger;
   private array $errors = [];
   private array $config = [];
+  private bool $debug = false;
+  private bool $captureRequestBody = false;
+  private bool $captureResponseBody = false;
 
   public function __construct(array $config) {
     $this->redactHeaders = $config['redactHeaders'] ?? [];
     $this->redactRequestBody = $config['redactRequestBody'] ?? [];
     $this->redactResponseBody = $config['redactResponseBody'] ?? [];
+    $this->captureRequestBody = $config['captureRequestBody'] ?? false;
+    $this->captureResponseBody = $config['captureResponseBody'] ?? false;
     $this->debug = $config['debug'] ?? false;
     $this->serviceVersion = $config['serviceVersion'] ?? null;
     $this->tags = $config['tags'] ?? [];
@@ -75,8 +77,15 @@ class APIToolkitMiddleware
       $pattern = $route->getPattern();
       $pathWithQuery = $path . ($query ? '?' . $query : '');
       $pathParams = $this->extractPathParams($pattern, $path);
-      $body = $response->getBody() || "";
-      $reqBod = $request->getParsedBody() || "";
+      $resBodyContent =  "";
+      if ($this->captureResponseBody) {
+        $resBody = $response->getBody();
+        $resBodyContent = $resBody ? (string) $resBody : "";
+      }
+      $reqBodyCotent = "";
+      if ($this->captureRequestBody) {
+        $reqBodyCotent = json_encode($request->getParsedBody()) ?? "";
+      }
       Shared::setAttributes(
         $span,
         $request->getUri()->getAuthority(),
@@ -89,8 +98,8 @@ class APIToolkitMiddleware
         $pathWithQuery,
         $msg_id,
         $pattern,
-        $reqBod,
-        $body,
+        $reqBodyCotent,
+        $resBodyContent,
         $this->errors,
         $this->config,
         'PhpSlim',
@@ -127,4 +136,5 @@ class APIToolkitMiddleware
     Shared::reportError($error, $client);
   }
 }
+
 
