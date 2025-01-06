@@ -67,7 +67,7 @@ export OTEL_PROPAGATORS=baggage,tracecontext
 
 ## Setup APItoolkit Middleware
 
-Next, create a new instance of the `APIToolkitMiddleware` class and register the middleware with the Slim Framework in the `app/middleware.php` file, like so. This creates a customs spans which captures and sends https request info such as headers, requests and repsonse bodies, matched route etc. for each request
+Next, create a new instance of the `APIToolkitMiddleware` class and register the middleware with the Slim Framework in the `app/middleware.php` file, like so. This creates a customs spans which captures and sends http request info such as headers, requests and repsonse bodies, matched route etc. for each request
 
 ```php
 use Slim\Factory\AppFactory;
